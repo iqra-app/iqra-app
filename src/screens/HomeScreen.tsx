@@ -4,9 +4,9 @@ import { LESSONS, TOTAL_LETTERS } from '../content/lessons';
 import { isLessonDone, isSessionOpen, sessionKey, streak, type Progress } from '../storage/progress';
 import { colors } from '../theme';
 
-type Props = { progress: Progress; onOpen: (lessonId: number, sessionIndex: number) => void };
+type Props = { progress: Progress; onOpen: (lessonId: number, sessionIndex: number) => void; onAlphabet: () => void };
 
-export function HomeScreen({ progress, onOpen }: Props) {
+export function HomeScreen({ progress, onOpen, onAlphabet }: Props) {
   const lettersKnown = progress.practiced.filter((id) => id.startsWith('l1-')).length;
   const builtSessions = LESSONS.flatMap((l) => l.sessions.map((_, i) => sessionKey(l.id, i)));
   const passedCount = progress.passed.filter((k) => builtSessions.includes(k)).length;
@@ -28,6 +28,14 @@ export function HomeScreen({ progress, onOpen }: Props) {
         <Stat value={`${lessonsDone}/17`} label="leçons validées" />
         <Stat value={`${days}`} label={days > 1 ? 'jours de suite' : 'jour de suite'} />
       </View>
+
+      <Pressable onPress={onAlphabet} style={({ pressed }) => [styles.alphabet, pressed && { opacity: 0.8 }]}>
+        <Text style={styles.alphabetArabic}>ا ب ت ث</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.lessonTitle}>L’alphabet et ses formes</Text>
+          <Text style={styles.lessonGoal}>Les 28 lettres au début, au milieu et à la fin du mot</Text>
+        </View>
+      </Pressable>
 
       <Text style={styles.section}>Ton chemin</Text>
       {LESSONS.map((lesson) => {
@@ -84,6 +92,8 @@ const styles = StyleSheet.create({
   stat: { flex: 1, backgroundColor: colors.card, borderRadius: 14, padding: 12, borderWidth: 1, borderColor: colors.line },
   statValue: { fontSize: 22, fontWeight: '800', color: colors.ink },
   statLabel: { fontSize: 12, color: colors.muted, marginTop: 2 },
+  alphabet: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.lightSoft, borderRadius: 14, padding: 12, borderWidth: 1, borderColor: colors.light },
+  alphabetArabic: { fontSize: 22, color: colors.ink },
   section: { fontSize: 18, fontWeight: '700', color: colors.ink, marginTop: 8 },
   lesson: {
     flexDirection: 'row',

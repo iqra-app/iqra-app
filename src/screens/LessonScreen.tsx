@@ -3,7 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { playModel, playModelRepeated, stopModel } from '../audio/modelVoice';
 import { useRepeat } from '../audio/useRepeat';
 import { Nouri } from '../components/Nouri';
-import { LESSONS } from '../content/lessons';
+import { formsOf, LESSONS } from '../content/lessons';
 import type { Item } from '../content/types';
 import { isSessionOpen, type Progress } from '../storage/progress';
 import { colors } from '../theme';
@@ -16,10 +16,11 @@ type Props = {
   onSession: (index: number) => void;
   onQuiz: () => void;
   onBack: () => void;
+  onAlphabet: () => void;
 };
 
 /** Tap, listen, repeat: the core interaction of the app. */
-export function LessonScreen({ lessonId, sessionIndex, progress, onPracticed, onSession, onQuiz, onBack }: Props) {
+export function LessonScreen({ lessonId, sessionIndex, progress, onPracticed, onSession, onQuiz, onBack, onAlphabet }: Props) {
   const lesson = LESSONS.find((l) => l.id === lessonId)!;
   const session = lesson.sessions[sessionIndex];
   const [selected, setSelected] = useState<Item>(session.items[0]);
@@ -63,6 +64,11 @@ export function LessonScreen({ lessonId, sessionIndex, progress, onPracticed, on
         <Text style={styles.headerTitle}>
           Leçon {lesson.id} · {lesson.title}
         </Text>
+        {lesson.id === 1 ? (
+          <Pressable onPress={onAlphabet} style={styles.alphabetLink}>
+            <Text style={styles.alphabetLinkText}>📖 Voir tout l’alphabet et ses formes</Text>
+          </Pressable>
+        ) : null}
       </View>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sessions}>
@@ -114,6 +120,8 @@ export function LessonScreen({ lessonId, sessionIndex, progress, onPracticed, on
         {selected.hint ? <Text style={styles.hint}>{selected.hint}</Text> : null}
         {selected.heavy ? <Text style={styles.heavyTag}>Lettre épaisse (tafkhîm) : son plein, langue relevée</Text> : null}
 
+        <LetterForms item={selected} onTap={() => playModel(selected, { slow })} />
+
         <View style={styles.actions}>
           <Btn label="▶ Écouter" onPress={() => listen(selected)} primary />
           <Btn label="× 3" onPress={() => { setHeard((h) => new Set(h).add(selected.id)); playModelRepeated(selected, 3, { slow }); }} />
@@ -146,6 +154,31 @@ export function LessonScreen({ lessonId, sessionIndex, progress, onPracticed, on
   );
 }
 
+/** The 4 shapes of the selected letter (alone, start, middle, end), so the learner memorises them. */
+function LetterForms({ item, onTap }: { item: Item; onTap: () => void }) {
+  const [, prefix, char, pos] = item.id.match(/^(l1|l2)-([^-]+)-?(\w*)/) ?? [];
+  const data = prefix ? formsOf(char) : null;
+  if (!data) return null;
+  const currentLabel = ({ iso: 'Seule', ini: 'Début', med: 'Milieu', fin: 'Fin' } as Record<string, string>)[pos] ?? 'Seule';
+  return (
+    <View style={styles.forms}>
+      <Text style={styles.formsTitle}>Ses formes dans le Coran</Text>
+      <View style={styles.formsRow}>
+        {data.forms.map((f) => {
+          const current = f.label === currentLabel;
+          return (
+            <Pressable key={f.label} onPress={onTap} style={[styles.form, current && styles.formCurrent]}>
+              <Text style={[styles.formText, item.heavy && { color: colors.heavy }]}>{f.text}</Text>
+              <Text style={styles.formLabel}>{f.label}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+      <Text style={styles.writing}>{data.writing}</Text>
+    </View>
+  );
+}
+
 function Btn({ label, onPress, primary }: { label: string; onPress: () => void; primary?: boolean }) {
   return (
     <Pressable onPress={onPress} style={[styles.btn, primary && styles.btnPrimary]}>
@@ -160,6 +193,8 @@ const styles = StyleSheet.create({
   back: { color: colors.primary, fontSize: 16, fontWeight: '600' },
   headerTitle: { fontSize: 20, fontWeight: '800', color: colors.ink },
   sessions: { gap: 8 },
+  alphabetLink: { alignSelf: 'flex-start', marginTop: 4, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, backgroundColor: colors.lightSoft },
+  alphabetLinkText: { color: colors.ink, fontWeight: '700', fontSize: 14 },
   chip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
   chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   chipText: { color: colors.ink, fontSize: 13 },
@@ -183,6 +218,14 @@ const styles = StyleSheet.create({
   latin: { fontSize: 18, fontWeight: '700', color: colors.ink },
   hint: { fontSize: 14, color: colors.muted, textAlign: 'center' },
   heavyTag: { fontSize: 13, color: colors.heavy, textAlign: 'center' },
+  forms: { alignSelf: 'stretch', gap: 6, marginTop: 4, alignItems: 'center' },
+  formsTitle: { fontSize: 13, fontWeight: '700', color: colors.muted },
+  formsRow: { flexDirection: 'row-reverse', gap: 6, alignSelf: 'stretch' },
+  form: { flex: 1, alignItems: 'center', paddingVertical: 6, borderRadius: 12, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.bg },
+  formCurrent: { borderColor: colors.primary, borderWidth: 2 },
+  formText: { fontSize: 34, lineHeight: 52, color: colors.ink, writingDirection: 'rtl' },
+  writing: { fontSize: 13, color: colors.ink, textAlign: 'center', lineHeight: 19 },
+  formLabel: { fontSize: 11, color: colors.muted },
   actions: { flexDirection: 'row', gap: 8, flexWrap: 'wrap', justifyContent: 'center' },
   btn: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: colors.primary },
   btnPrimary: { backgroundColor: colors.primary },
