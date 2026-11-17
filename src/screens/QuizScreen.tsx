@@ -2,13 +2,17 @@ import { useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { playModel, stopModel } from '../audio/modelVoice';
 import { Nouri } from '../components/Nouri';
-import { closeTo, LESSONS } from '../content/lessons';
+import { closeTo, formsOf, letterItem, LESSONS } from '../content/lessons';
+import { LETTERS, SAME_SHAPE } from '../content/letters';
 import type { Item } from '../content/types';
 import { colors } from '../theme';
 
 const PASS = 0.8;
 
-type Question = { kind: 'hear' | 'see'; answer: Item; choices: Item[] };
+type Question =
+  | { kind: 'hear' | 'see'; answer: Item; choices: Item[] }
+  /** Lesson 2: a joined form is shown, the learner picks which letter it is. */
+  | { kind: 'shape'; form: Item; answer: Item; choices: Item[] };
 
 function shuffle<T>(list: T[]): T[] {
   const a = [...list];
@@ -28,7 +32,9 @@ function buildQuiz(lessonId: number, sessionIndex: number): Question[] {
   // 6 questions on the new items + 2 review questions on earlier sessions of the lesson.
   const targets = [...shuffle(current), ...shuffle(current)].slice(0, 6).concat(shuffle(earlier).slice(0, 2));
 
-  return shuffle(targets).map((answer, n) => {
+  return shuffle(targets).map((answer, n): Question => {
+    const shape = n % 3 === 2 ? shapeQuestion(answer) : null;
+    if (shape) return shape;
     const close = shuffle(closeTo(answer, pool));
     const others = shuffle(pool.filter((p) => p.id !== answer.id && p.latin !== answer.latin));
     const choices: Item[] = [answer];
@@ -38,6 +44,22 @@ function buildQuiz(lessonId: number, sessionIndex: number): Question[] {
     }
     return { kind: n % 2 === 0 ? 'hear' : 'see', answer, choices: shuffle(choices) };
   });
+}
+
+/** Lesson 1: "Which letter is this?" for its start / middle / end form, with look-alike letters as distractors. */
+function shapeQuestion(answer: Item): Question | null {
+  const m = answer.id.match(/^l1-(.+)$/);
+  const data = m ? formsOf(m[1]) : null;
+  if (!m || !data || data.noJoin) return null;
+  const letter = LETTERS.find((l) => l.char === m[1])!;
+  const pick = shuffle(data.forms.slice(1))[0];
+  const form: Item = { ...answer, id: `${answer.id}-${pick.label}`, text: pick.text, hint: `${pick.label} du mot` };
+  const lookAlikes = SAME_SHAPE.find((g) => g.includes(letter.char)) ?? [];
+  const distractors = [
+    ...shuffle(LETTERS.filter((l) => l.char !== letter.char && lookAlikes.includes(l.char))),
+    ...shuffle(LETTERS.filter((l) => l.char !== letter.char && !lookAlikes.includes(l.char))),
+  ];
+  return { kind: 'shape', form, answer, choices: shuffle([letter, ...distractors.slice(0, 3)].map(letterItem)) };
 }
 
 type Props = { lessonId: number; sessionIndex: number; onPass: () => void; onDone: (passed: boolean) => void };
@@ -85,7 +107,7 @@ export function QuizScreen({ lessonId, sessionIndex, onPass, onDone }: Props) {
     if (picked) return;
     setPicked(c);
     if (c.id === q.answer.id) setScore((s) => s + 1);
-    else if (q.kind === 'see') playModel(q.answer);
+    else if (q.kind !== 'hear') playModel(q.answer);
   };
 
   return (
@@ -104,6 +126,12 @@ export function QuizScreen({ lessonId, sessionIndex, onPass, onDone }: Props) {
             <Text style={styles.playText}>▶ Réécouter</Text>
           </Pressable>
         </View>
+      ) : q.kind === 'shape' ? (
+        <View style={styles.prompt}>
+          <Text style={styles.ask}>Quelle lettre se cache dans cette forme ?</Text>
+          <Text style={styles.big}>{q.form.text}</Text>
+          <Text style={styles.small}>{q.form.hint}</Text>
+        </View>
       ) : (
         <View style={styles.prompt}>
           <Text style={styles.ask}>Je vois, je choisis le bon son</Text>
@@ -121,7 +149,7 @@ export function QuizScreen({ lessonId, sessionIndex, onPass, onDone }: Props) {
               onPress={() => choose(c)}
               style={[styles.choice, right && styles.right, wrong && styles.wrong]}
             >
-              {q.kind === 'hear' ? (
+              {q.kind !== 'see' ? (
                 <Text style={styles.choiceArabic}>{c.text}</Text>
               ) : (
                 <Text style={styles.choiceLatin}>{c.latin}</Text>
@@ -156,6 +184,7 @@ const styles = StyleSheet.create({
   play: { backgroundColor: colors.primary, borderRadius: 999, paddingHorizontal: 22, paddingVertical: 14 },
   playText: { color: '#fff', fontWeight: '700', fontSize: 16 },
   big: { fontSize: 96, lineHeight: 140, color: colors.ink },
+  small: { color: colors.muted, fontSize: 13 },
   choices: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: 12, justifyContent: 'center' },
   choice: {
     width: '45%',

@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useState } from 'react';
 import { LESSONS } from '../content/lessons';
 
-const KEY = 'iqra.progress.v1';
+const KEY = 'iqra.progress.v2';
 
 export type Progress = {
   /** "lessonId:sessionIndex" of every passed session. */
@@ -27,13 +27,12 @@ export function isLessonDone(p: Progress, lessonId: number) {
   return lesson.sessions.length > 0 && lesson.sessions.every((_, i) => p.passed.includes(sessionKey(lessonId, i)));
 }
 
-/** A session is open when every earlier session (in this and earlier lessons) is passed. */
+/**
+ * A session is open when every earlier session of the same lesson is passed.
+ * Lessons themselves are all open for now, so the prototype can be tried lesson by lesson.
+ */
 export function isSessionOpen(p: Progress, lessonId: number, index: number) {
-  for (const l of LESSONS) {
-    if (l.id > lessonId) break;
-    const upTo = l.id === lessonId ? index : l.sessions.length;
-    for (let i = 0; i < upTo; i++) if (!p.passed.includes(sessionKey(l.id, i))) return false;
-  }
+  for (let i = 0; i < index; i++) if (!p.passed.includes(sessionKey(lessonId, i))) return false;
   return true;
 }
 

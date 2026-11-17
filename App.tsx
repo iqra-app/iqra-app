@@ -2,6 +2,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useState } from 'react';
 import { ActivityIndicator, SafeAreaView, StyleSheet, View } from 'react-native';
 import { LESSONS } from './src/content/lessons';
+import { AlphabetScreen } from './src/screens/AlphabetScreen';
 import { HomeScreen } from './src/screens/HomeScreen';
 import { LessonScreen } from './src/screens/LessonScreen';
 import { QuizScreen } from './src/screens/QuizScreen';
@@ -10,6 +11,7 @@ import { colors } from './src/theme';
 
 type Screen =
   | { name: 'home' }
+  | { name: 'alphabet'; from: Screen }
   | { name: 'lesson'; lessonId: number; sessionIndex: number }
   | { name: 'quiz'; lessonId: number; sessionIndex: number };
 
@@ -31,7 +33,13 @@ export default function App() {
           <ActivityIndicator color={colors.primary} />
         </View>
       ) : screen.name === 'home' ? (
-        <HomeScreen progress={progress} onOpen={(lessonId, sessionIndex) => setScreen({ name: 'lesson', lessonId, sessionIndex })} />
+        <HomeScreen
+          progress={progress}
+          onOpen={(lessonId, sessionIndex) => setScreen({ name: 'lesson', lessonId, sessionIndex })}
+          onAlphabet={() => setScreen({ name: 'alphabet', from: screen })}
+        />
+      ) : screen.name === 'alphabet' ? (
+        <AlphabetScreen onBack={() => setScreen(screen.from)} />
       ) : screen.name === 'lesson' ? (
         <LessonScreen
           lessonId={screen.lessonId}
@@ -41,6 +49,7 @@ export default function App() {
           onSession={(i) => setScreen({ ...screen, sessionIndex: i })}
           onQuiz={() => setScreen({ ...screen, name: 'quiz' })}
           onBack={() => setScreen({ name: 'home' })}
+          onAlphabet={() => setScreen({ name: 'alphabet', from: screen })}
         />
       ) : (
         <QuizScreen
